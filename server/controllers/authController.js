@@ -8,37 +8,44 @@ const transporter = require("../config/mailer");
 // ================= SIGNUP =================
 exports.signup = async (req, res) => {
     try {
-        console.log("Incoming data:", req.body); // debug
+        console.log("Incoming:", req.body);
 
-        const { name, email, password, bloodGroup } = req.body;
+        let { name, email, password, bloodGroup } = req.body;
 
-        // validation
+        // 🧼 sanitize input
+        if (bloodGroup) {
+            bloodGroup = bloodGroup.trim().toUpperCase();
+        }
+
         if (!name || !email || !password || !bloodGroup) {
             return res.status(400).json({ msg: "All fields required" });
         }
 
-        // check if user exists
+        const validGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+        if (!validGroups.includes(bloodGroup)) {
+            return res.status(400).json({ msg: "Invalid blood group" });
+        }
+
         const existing = await User.findOne({ email });
         if (existing) {
             return res.status(400).json({ msg: "User already exists" });
         }
 
-        // hash password
         const hashed = await bcrypt.hash(password, 10);
 
-        // create user
         const user = await User.create({
             name,
             email,
             password: hashed,
-            bloodGroup,        // ✅ IMPORTANT
-            role: "donor"      // ✅ DEFAULT ROLE
+            bloodGroup,
+            role: "donor"
         });
 
         res.json({ msg: "Signup successful" });
 
     } catch (err) {
-        console.log("ERROR:", err); // 👈 VERY IMPORTANT
+        console.log("ERROR:", err);
         res.status(500).json({ msg: err.message });
     }
 };

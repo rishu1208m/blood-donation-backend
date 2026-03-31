@@ -58,12 +58,21 @@ function Register() {
                         className="w-full p-2 border mb-3 rounded"
                     />
 
-                    <input
+                    <select
                         name="bloodGroup"
-                        placeholder="Blood Group"
                         onChange={handleChange}
                         className="w-full p-2 border mb-4 rounded"
-                    />
+                    >
+                        <option value="">Select Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                    </select>
 
                     <button className="w-full bg-red-500 text-white py-2 rounded">
                         Register
