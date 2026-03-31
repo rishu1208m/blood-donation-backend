@@ -8,35 +8,40 @@ const transporter = require("../config/mailer");
 // ================= SIGNUP =================
 exports.signup = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        console.log("Incoming:", req.body); // 👈 debug
 
+        const { name, email, password, bloodGroup } = req.body;
+
+        // validation
+        if (!name || !email || !password || !bloodGroup) {
+            return res.status(400).json({ msg: "All fields required" });
+        }
+
+        // check existing
         const existing = await User.findOne({ email });
-        if (existing) return res.status(400).json({ msg: "User exists" });
+        if (existing) {
+            return res.status(400).json({ msg: "User already exists" });
+        }
 
+        // hash password
         const hashed = await bcrypt.hash(password, 10);
 
+        // create user
         const user = await User.create({
             name,
             email,
             password: hashed,
-            role
+            bloodGroup,        // ✅ added
+            role: "donor"      // ✅ default role
         });
 
-        const verifyToken = uuidv4();
-
-        await Token.create({
-            userId: user._id,
-            token: verifyToken,
-            type: "verify"
-        });
-
-        res.json({ msg: "Signup successful. Verify email." });
+        res.json({ msg: "Signup successful" });
 
     } catch (err) {
+        console.log(err); // 👈 IMPORTANT
         res.status(500).json({ msg: err.message });
     }
 };
-
 // ================= VERIFY EMAIL =================
 exports.verifyEmail = async (req, res) => {
     try {

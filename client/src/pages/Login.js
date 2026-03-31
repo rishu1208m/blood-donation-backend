@@ -16,12 +16,9 @@ function Login() {
         e.preventDefault();
 
         try {
-            const res = await API.post("/auth/login", {
-                email,
-                password,
-            }); // ✅ FIXED
+            const res = await API.post("/api/auth/login", { email, password });
 
-            localStorage.setItem("token", res.data.token);
+            localStorage.setItem("token", res.data.accessToken);
             navigate("/dashboard");
         } catch (err) {
             alert(err.response?.data?.message || "Login failed");
