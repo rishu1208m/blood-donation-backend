@@ -7,43 +7,47 @@ function Login() {
     const [password, setPassword] = useState("");
     const navigate = useNavigate();
 
-    // 🔹 Auto-redirect if already logged in
     useEffect(() => {
         const token = localStorage.getItem("token");
-        if (token) {
-            navigate("/dashboard");
-        }
+        if (token) navigate("/dashboard");
     }, [navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         try {
-            const res = await API.post("/auth/login", { email, password });
+            const res = await API.post("/auth/login", {
+                email,
+                password,
+            }); // ✅ FIXED
+
             localStorage.setItem("token", res.data.token);
             navigate("/dashboard");
         } catch (err) {
-            alert(err.response?.data?.msg || "Login failed");
+            alert(err.response?.data?.message || "Login failed");
         }
     };
 
     return (
         <div className="flex items-center justify-center h-screen bg-red-50">
             <div className="bg-white p-8 rounded shadow w-80">
-                <h2 className="text-2xl font-bold mb-6 text-center text-red-500">Login</h2>
+                <h2 className="text-2xl font-bold mb-6 text-center text-red-500">
+                    Login
+                </h2>
 
                 <form onSubmit={handleSubmit}>
                     <input
-                        className="w-full p-2 border mb-4 rounded"
                         placeholder="Email"
                         onChange={(e) => setEmail(e.target.value)}
+                        className="w-full p-2 border mb-4 rounded"
                         required
                     />
+
                     <input
                         type="password"
-                        className="w-full p-2 border mb-4 rounded"
                         placeholder="Password"
                         onChange={(e) => setPassword(e.target.value)}
+                        className="w-full p-2 border mb-4 rounded"
                         required
                     />
 
