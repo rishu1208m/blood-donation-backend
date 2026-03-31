@@ -8,7 +8,7 @@ const transporter = require("../config/mailer");
 // ================= SIGNUP =================
 exports.signup = async (req, res) => {
     try {
-        console.log("Incoming:", req.body); // 👈 debug
+        console.log("Incoming data:", req.body); // debug
 
         const { name, email, password, bloodGroup } = req.body;
 
@@ -17,7 +17,7 @@ exports.signup = async (req, res) => {
             return res.status(400).json({ msg: "All fields required" });
         }
 
-        // check existing
+        // check if user exists
         const existing = await User.findOne({ email });
         if (existing) {
             return res.status(400).json({ msg: "User already exists" });
@@ -31,14 +31,14 @@ exports.signup = async (req, res) => {
             name,
             email,
             password: hashed,
-            bloodGroup,        // ✅ added
-            role: "donor"      // ✅ default role
+            bloodGroup,        // ✅ IMPORTANT
+            role: "donor"      // ✅ DEFAULT ROLE
         });
 
         res.json({ msg: "Signup successful" });
 
     } catch (err) {
-        console.log(err); // 👈 IMPORTANT
+        console.log("ERROR:", err); // 👈 VERY IMPORTANT
         res.status(500).json({ msg: err.message });
     }
 };
