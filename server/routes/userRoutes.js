@@ -1,0 +1,1 @@
+router.get("/nearby", auth, getNearbyDonors);
