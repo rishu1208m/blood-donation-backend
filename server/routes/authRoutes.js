@@ -1,13 +1,9 @@
 const express = require("express");
 const router = express.Router();
-
 const { body } = require("express-validator");
 const rateLimit = require("express-rate-limit");
 
-const auth = require("../middleware/authMiddleware");
-const role = require("../middleware/roleMiddleware");
-
-// ✅ ONLY import what exists
+// controllers
 const {
     signup,
     login,
@@ -19,6 +15,12 @@ const {
     forgotPassword
 } = require("../controllers/authController");
 
+// middleware
+const auth = require("../middleware/authMiddleware");
+const role = require("../middleware/roleMiddleware");
+
+// ================= SECURITY =================
+
 // 🔐 Login rate limit
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -27,24 +29,22 @@ const loginLimiter = rateLimit({
 
 // ================= ROUTES =================
 
-// ✅ REGISTER = SIGNUP (use same function)
+// ✅ REGISTER (signup)
 router.post(
-    "/register",
+    "/signup",
     body("name").notEmpty(),
     body("email").isEmail(),
-    body("password").isStrongPassword({
-        minLength: 6,
-        minNumbers: 1,
-        minUppercase: 1
-    }),
+    body("password").isLength({ min: 8 }),
     signup
 );
 
 // ✅ LOGIN
 router.post("/login", loginLimiter, login);
 
-// ✅ TOKEN
+// ✅ REFRESH TOKEN
 router.post("/refresh", refreshToken);
+
+// ✅ LOGOUT
 router.post("/logout", logout);
 
 // ✅ EMAIL VERIFY
@@ -54,12 +54,12 @@ router.get("/verify/:token", verifyEmail);
 router.post("/send-otp", sendOTP);
 router.post("/verify-otp", verifyOTP);
 
-// ✅ PASSWORD RESET
+// ✅ FORGOT PASSWORD
 router.post("/forgot-password", forgotPassword);
 
-// ✅ ADMIN ROUTE
+// ✅ ADMIN TEST ROUTE
 router.get("/admin", auth, role("admin"), (req, res) => {
-    res.json({ msg: "Admin only access" });
+    res.json({ msg: "Admin access granted" });
 });
 
 module.exports = router;
