@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-    baseURL: "https://blood-donation-backend-bzb8.onrender.com/api"
+    baseURL: "https://blood-donation-backend-bzb8.onrender.com"
 });
 
 API.interceptors.request.use((req) => {
