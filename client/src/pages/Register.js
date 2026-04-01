@@ -20,7 +20,7 @@ function Register() {
         e.preventDefault();
 
         try {
-            await API.post("/api/auth/signup", form); // ✅ FIXED
+            await API.post("/api/auth/register", form); // ✅ FIXED
             alert("Registered successfully");
             navigate("/");
         } catch (err) {
