@@ -18,23 +18,28 @@ const {
 // middleware
 const auth = require("../middleware/authMiddleware");
 const role = require("../middleware/roleMiddleware");
+const validate = require("../middleware/validate"); // ✅ NEW
 
 // ================= SECURITY =================
-
-// 🔐 Login rate limit
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5
+    max: 5,
+    message: { message: "Too many login attempts. Try again after 15 minutes." }
 });
 
 // ================= ROUTES =================
 
-// ✅ REGISTER (signup)
+// ✅ REGISTER
 router.post(
     "/register",
-    body("name").notEmpty(),
-    body("email").isEmail(),
-    body("password").isLength({ min: 8 }),
+    body("name").notEmpty().withMessage("Name is required"),
+    body("email").isEmail().withMessage("Valid email is required"),
+    body("password").isLength({ min: 8 }).withMessage("Password must be at least 8 characters"),
+    body("bloodGroup")
+        .notEmpty().withMessage("Blood group is required")
+        .isIn(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"])
+        .withMessage("Invalid blood group"),
+    validate, // ✅ NOW ACTUALLY CHECKS VALIDATION RESULT
     signup
 );
 
@@ -59,7 +64,7 @@ router.post("/forgot-password", forgotPassword);
 
 // ✅ ADMIN TEST ROUTE
 router.get("/admin", auth, role("admin"), (req, res) => {
-    res.json({ msg: "Admin access granted" });
+    res.json({ message: "Admin access granted" });
 });
 
 module.exports = router;

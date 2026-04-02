@@ -6,7 +6,6 @@ const userSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-
     email: {
         type: String,
         required: true,
@@ -14,12 +13,10 @@ const userSchema = new mongoose.Schema({
         lowercase: true,
         trim: true
     },
-
     password: {
         type: String,
         required: true
     },
-
     role: {
         type: String,
         enum: ["donor", "receiver", "admin"],
@@ -41,24 +38,26 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-
     lockUntil: Date,
 
-    // 🩸 Blood info
+    // 🩸 Blood info — ✅ now required, no empty string accepted
     bloodGroup: {
         type: String,
-        enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+        required: [true, "Blood group is required"],
+        enum: {
+            values: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+            message: "Invalid blood group"
+        }
     },
 
-    // 📍 Location (GeoJSON)
+    // 📍 Location (GeoJSON) — ✅ optional, sparse index prevents null island [0,0]
     location: {
         type: {
             type: String,
-            default: "Point"
+            enum: ["Point"]
         },
         coordinates: {
-            type: [Number], // [lng, lat]
-            default: [0, 0]
+            type: [Number] // [lng, lat]
         }
     },
 
@@ -67,7 +66,6 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
-
     lastDonated: Date,
 
     // ⭐ Rating
@@ -77,20 +75,19 @@ const userSchema = new mongoose.Schema({
         min: 0,
         max: 5
     }
-
 }, { timestamps: true });
 
+// ✅ sparse:true so users without location don't cause index errors
+userSchema.index({ location: "2dsphere" }, { sparse: true });
 
-// 🔥 Geo index for search
-userSchema.index({ location: "2dsphere" });
-
-
-// 🔐 Hide sensitive fields
+// 🔐 Hide sensitive fields from API responses
 userSchema.methods.toJSON = function () {
     const obj = this.toObject();
     delete obj.password;
     delete obj.otp;
     delete obj.otpExpiry;
+    delete obj.loginAttempts;
+    delete obj.lockUntil;
     return obj;
 };
 
