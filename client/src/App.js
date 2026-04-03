@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import VerifyOTP from "./pages/VerifyOTP";
 import Dashboard from "./pages/Dashboard";
 import Donors from "./pages/Donors";
 import MyRequests from "./pages/MyRequests";
@@ -12,8 +13,12 @@ export default function App() {
   return (
     <Router>
       <Routes>
+        {/* Public */}
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+
+        {/* Protected */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/donors" element={<PrivateRoute><Donors /></PrivateRoute>} />
         <Route path="/my-requests" element={<PrivateRoute><MyRequests /></PrivateRoute>} />

@@ -5,8 +5,8 @@ import API from "../services/api";
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @keyframes fadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
-@keyframes blob { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(28px,-20px) scale(1.04)} 66%{transform:translate(-18px,14px) scale(.97)} }
-@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes blob   { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(28px,-20px) scale(1.04)} 66%{transform:translate(-18px,14px) scale(.97)} }
+@keyframes spin   { to{transform:rotate(360deg)} }
 .auth-in { width:100%; padding:13px 16px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:12px; color:#fff; font-size:.9rem; font-family:'Plus Jakarta Sans',sans-serif; outline:none; box-sizing:border-box; transition:border .2s,background .2s; }
 .auth-in:focus { border-color:rgba(231,76,60,.6); background:rgba(231,76,60,.06); }
 .auth-in::placeholder { color:rgba(255,255,255,.28); }
@@ -38,8 +38,16 @@ export default function Login() {
             localStorage.setItem("refreshToken", res.data.refreshToken);
             navigate("/dashboard");
         } catch (err) {
-            alert(err.response?.data?.message || "Login failed");
-        } finally { setLoading(false); }
+            const data = err.response?.data;
+            // ✅ If email not verified, redirect to OTP page
+            if (data?.needsVerification) {
+                navigate("/verify-otp", { state: { email: data.email } });
+                return;
+            }
+            alert(data?.message || "Login failed");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -51,11 +59,13 @@ export default function Login() {
 
                 <div style={{ width: "100%", maxWidth: 420, padding: "0 1.5rem", position: "relative", zIndex: 1, opacity: ready ? 1 : 0, transform: ready ? "translateY(0)" : "translateY(28px)", transition: "all .6s ease" }}>
                     <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.09)", borderRadius: 24, padding: "2.5rem 2rem", backdropFilter: "blur(12px)" }}>
+
                         <div style={{ textAlign: "center", marginBottom: "2.2rem" }}>
                             <div style={{ width: 60, height: 60, borderRadius: 18, background: "linear-gradient(135deg,#e74c3c,#c0392b)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "1.7rem", boxShadow: "0 10px 28px rgba(231,76,60,.45)", marginBottom: 18 }}>🩸</div>
                             <h1 style={{ fontSize: "1.7rem", fontWeight: 800, color: "#fff", margin: "0 0 6px" }}>Welcome back</h1>
                             <p style={{ color: "rgba(255,255,255,.38)", fontSize: "0.88rem", margin: 0 }}>Sign in to BloodConnect</p>
                         </div>
+
                         <form onSubmit={handleSubmit}>
                             <div style={{ marginBottom: 14 }}>
                                 <label style={{ display: "block", color: "rgba(255,255,255,.5)", fontSize: "0.75rem", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.8px" }}>Email</label>
@@ -66,11 +76,16 @@ export default function Login() {
                                 <input type="password" className="auth-in" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
                             </div>
                             <button type="submit" className="auth-btn" disabled={loading}>
-                                {loading ? <span style={{ display: "inline-block", width: 18, height: 18, border: "2.5px solid rgba(255,255,255,.3)", borderTop: "2.5px solid #fff", borderRadius: "50%", animation: "spin .7s linear infinite", verticalAlign: "middle" }} /> : "Sign In →"}
+                                {loading
+                                    ? <span style={{ display: "inline-block", width: 18, height: 18, border: "2.5px solid rgba(255,255,255,.3)", borderTop: "2.5px solid #fff", borderRadius: "50%", animation: "spin .7s linear infinite", verticalAlign: "middle" }} />
+                                    : "Sign In →"
+                                }
                             </button>
                         </form>
+
                         <p style={{ textAlign: "center", marginTop: 20, color: "rgba(255,255,255,.35)", fontSize: "0.85rem" }}>
-                            No account?{" "}<Link to="/register" style={{ color: "#ff8a80", fontWeight: 700, textDecoration: "none" }}>Create one</Link>
+                            No account?{" "}
+                            <Link to="/register" style={{ color: "#ff8a80", fontWeight: 700, textDecoration: "none" }}>Create one</Link>
                         </p>
                     </div>
                 </div>
