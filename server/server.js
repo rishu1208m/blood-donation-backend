@@ -1,101 +1,69 @@
 require("dotenv").config();
-
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const morgan = require("morgan");
-
 const http = require("http");
 const { Server } = require("socket.io");
 
 const app = express();
 
-
 // ================= MIDDLEWARE =================
-
-// Body parser
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
-
-// Security
-app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false
-}));
-
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.disable("x-powered-by");
-
-// ✅ FIXED CORS (VERY IMPORTANT)
-app.use(cors({
-    origin: "*",   // allow all (for now)
-}));
-
-// Logging
+app.use(cors({ origin: "*" }));
 app.use(morgan("dev"));
-
-// Rate limit
-app.use(rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-}));
-
-// Sanitize
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 app.use(require("./middleware/sanitize"));
 
-
 // ================= SOCKET =================
-
 const server = http.createServer(app);
-
-const io = new Server(server, {
-    cors: {
-        origin: "*"
-    }
-});
-
+const io = new Server(server, { cors: { origin: "*" } });
 app.set("io", io);
 
-
 // ================= ROUTES =================
-
 app.use("/api/auth", require("./routes/authRoutes"));
-app.use("/api/request", require("./routes/requestRoutes"));
+app.use("/api/requests", require("./routes/requestRoutes")); // ✅ Fixed: was "/api/request" (missing s)
+app.use("/api/users", require("./routes/userRoutes"));     // ✅ Added: was completely missing
 app.use("/api/search", require("./routes/searchRoutes"));
 
-
-// ✅ Optional test route
-app.get("/", (req, res) => {
-    res.send("API is running...");
-});
-
+// Health check
+app.get("/", (req, res) => res.send("✅ API is running..."));
 
 // ================= DATABASE =================
-
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("MongoDB Connected"))
-    .catch(err => console.log(err));
-
+    .then(() => {
+        console.log("✅ MongoDB Connected");
+        console.log(`✅ Database: ${mongoose.connection.name}`);
+    })
+    .catch(err => {
+        console.error("❌ MongoDB connection failed:", err.message);
+        process.exit(1);
+    });
 
 // ================= TOKEN CLEANUP =================
-
 setInterval(async () => {
-    await require("./models/Token").deleteMany({
-        expiresAt: { $lt: new Date() }
-    });
+    try {
+        const deleted = await require("./models/Token").deleteMany({
+            expiresAt: { $lt: new Date() }
+        });
+        if (deleted.deletedCount > 0) {
+            console.log(`🧹 Cleaned up ${deleted.deletedCount} expired token(s)`);
+        }
+    } catch (err) {
+        console.error("Token cleanup error:", err.message);
+    }
 }, 60 * 60 * 1000);
 
-
-// ================= ERROR =================
-
+// ================= ERROR HANDLER =================
 app.use(require("./middleware/errorHandler"));
 
-
 // ================= START =================
-
 const PORT = process.env.PORT || 5000;
-
 server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
