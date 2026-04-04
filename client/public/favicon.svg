@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1a1a22"/>
+      <stop offset="100%" stop-color="#0d0d12"/>
+    </radialGradient>
+    <radialGradient id="drop" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ff6b6b"/>
+      <stop offset="50%" stop-color="#e74c3c"/>
+      <stop offset="100%" stop-color="#922b21"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="60%" r="50%">
+      <stop offset="0%" stop-color="#e74c3c" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#e74c3c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft">
+      <feGaussianBlur stdDeviation="1.5"/>
+    </filter>
+  </defs>
+
+  <!-- Dark rounded background -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+
+  <!-- Glow behind drop -->
+  <ellipse cx="32" cy="38" rx="20" ry="18" fill="url(#glow)" filter="url(#soft)"/>
+
+  <!-- Blood drop shape — precise teardrop -->
+  <path d="M32 7
+    C32 7 14 28 14 40
+    C14 51.5 22.5 58 32 58
+    C41.5 58 50 51.5 50 40
+    C50 28 32 7 32 7Z"
+    fill="url(#drop)"/>
+
+  <!-- Inner depth shadow -->
+  <path d="M32 14
+    C32 14 18 32 18 41
+    C18 49 24.5 54.5 32 54.5"
+    fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Main specular highlight -->
+  <ellipse cx="25" cy="29" rx="4" ry="7" fill="rgba(255,255,255,0.45)" transform="rotate(-15 25 29)"/>
+
+  <!-- Small bright dot -->
+  <circle cx="22" cy="23" r="2.5" fill="rgba(255,255,255,0.7)"/>
+
+  <!-- Bottom soft reflection -->
+  <ellipse cx="32" cy="53" rx="7" ry="2" fill="rgba(255,255,255,0.12)"/>
+</svg>
