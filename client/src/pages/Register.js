@@ -7,6 +7,7 @@ const S = `
 @keyframes fadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
 @keyframes blob   { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(28px,-20px) scale(1.04)} 66%{transform:translate(-18px,14px) scale(.97)} }
 @keyframes spin   { to{transform:rotate(360deg)} }
+@keyframes shake  { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
 .auth-in { width:100%; padding:13px 16px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:12px; color:#fff; font-size:.9rem; font-family:'Plus Jakarta Sans',sans-serif; outline:none; box-sizing:border-box; transition:border .2s,background .2s; }
 .auth-in:focus { border-color:rgba(231,76,60,.6); background:rgba(231,76,60,.06); }
 .auth-in::placeholder { color:rgba(255,255,255,.28); }
@@ -16,38 +17,54 @@ const S = `
 .auth-btn:active:not(:disabled){transform:scale(.98);}
 .auth-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
 .role-btn { flex:1; padding:12px; border-radius:12px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.88rem; font-weight:700; cursor:pointer; transition:all .2s; }
+.err-banner { color:#ff6b6b; background:rgba(231,76,60,.08); border:1px solid rgba(231,76,60,.22); border-radius:10px; padding:10px 14px; font-size:.82rem; margin-bottom:14px; animation: shake .35s ease; }
 `;
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Register() {
     const [form, setForm] = useState({ name: "", email: "", password: "", bloodGroup: "", role: "donor" });
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
     const navigate = useNavigate();
 
-    const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
+    const handleChange = e => {
+        const { name, value } = e.target;
+        // Strip whitespace in email so trailing/internal spaces never trigger browser email validation
+        if (name === "email") {
+            setForm(f => ({ ...f, email: value.replace(/\s+/g, "") }));
+        } else {
+            setForm(f => ({ ...f, [name]: value }));
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.name.trim()) { alert("Name is required"); return; }
-        if (!form.email.trim()) { alert("Email is required"); return; }
-        if (form.password.length < 8) { alert("Password must be 8+ characters"); return; }
-        if (!form.bloodGroup) { alert("Please select a blood group"); return; }
+        const name = form.name.trim();
+        const email = form.email.trim().toLowerCase();
+        const password = form.password;
 
+        if (!name) { setError("Please enter your name"); return; }
+        if (!EMAIL_REGEX.test(email)) { setError("Please enter a valid email address"); return; }
+        if (password.length < 8) { setError("Password must be at least 8 characters"); return; }
+        if (!form.bloodGroup) { setError("Please select your blood group"); return; }
+
+        setError("");
         setLoading(true);
         try {
-            await API.post("/api/auth/register", form);
-            // ✅ Redirect to OTP verification page with email
-            navigate("/verify-otp", { state: { email: form.email } });
+            await API.post("/api/auth/register", { ...form, name, email });
+            navigate("/verify-otp", { state: { email } });
         } catch (err) {
-            alert(err.response?.data?.message || "Registration failed");
+            setError(err.response?.data?.message || "Registration failed");
         } finally {
             setLoading(false);
         }
     };
 
     const fields = [
-        { label: "Full Name", name: "name", type: "text", placeholder: "John Doe" },
-        { label: "Email", name: "email", type: "email", placeholder: "you@example.com" },
-        { label: "Password", name: "password", type: "password", placeholder: "Min 8 characters" },
+        { label: "Full Name", name: "name", type: "text", placeholder: "John Doe", autoComplete: "name" },
+        { label: "Email", name: "email", type: "email", placeholder: "you@example.com", autoComplete: "email" },
+        { label: "Password", name: "password", type: "password", placeholder: "Min 8 characters", autoComplete: "new-password" },
     ];
 
     return (
@@ -66,6 +83,8 @@ export default function Register() {
                             <p style={{ color: "rgba(255,255,255,.38)", fontSize: "0.88rem", margin: 0 }}>Create your account</p>
                         </div>
 
+                        {error && <div className="err-banner">⚠️ {error}</div>}
+
                         {/* Role selector */}
                         <div style={{ marginBottom: 20 }}>
                             <label style={{ display: "block", color: "rgba(255,255,255,.5)", fontSize: "0.75rem", fontWeight: 600, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.8px" }}>I am registering as</label>
@@ -81,8 +100,7 @@ export default function Register() {
                                             color: form.role === r.value ? "#fff" : "rgba(255,255,255,.45)",
                                             border: `1.5px solid ${form.role === r.value ? "transparent" : "rgba(255,255,255,.1)"}`,
                                             boxShadow: form.role === r.value ? "0 6px 18px rgba(231,76,60,.35)" : "none",
-                                        }}
-                                    >
+                                        }}>
                                         <div>{r.label}</div>
                                         <div style={{ fontSize: "0.72rem", fontWeight: 400, opacity: .7, marginTop: 2 }}>{r.desc}</div>
                                     </button>
@@ -90,17 +108,17 @@ export default function Register() {
                             </div>
                         </div>
 
-                        <form onSubmit={handleSubmit}>
+                        <form onSubmit={handleSubmit} noValidate>
                             {fields.map(f => (
                                 <div key={f.name} style={{ marginBottom: 14 }}>
                                     <label style={{ display: "block", color: "rgba(255,255,255,.5)", fontSize: "0.75rem", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.8px" }}>{f.label}</label>
-                                    <input type={f.type} name={f.name} className="auth-in" placeholder={f.placeholder} value={form[f.name]} onChange={handleChange} required />
+                                    <input type={f.type} name={f.name} autoComplete={f.autoComplete} className="auth-in" placeholder={f.placeholder} value={form[f.name]} onChange={handleChange} />
                                 </div>
                             ))}
 
                             <div style={{ marginBottom: 26 }}>
                                 <label style={{ display: "block", color: "rgba(255,255,255,.5)", fontSize: "0.75rem", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.8px" }}>Blood Group</label>
-                                <select name="bloodGroup" className="auth-in" value={form.bloodGroup} onChange={handleChange} required>
+                                <select name="bloodGroup" className="auth-in" value={form.bloodGroup} onChange={handleChange}>
                                     <option value="">Select blood group</option>
                                     {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(g => <option key={g} value={g}>{g}</option>)}
                                 </select>

@@ -7,6 +7,7 @@ const S = `
 @keyframes fadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
 @keyframes blob   { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(28px,-20px) scale(1.04)} 66%{transform:translate(-18px,14px) scale(.97)} }
 @keyframes spin   { to{transform:rotate(360deg)} }
+@keyframes shake  { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
 .auth-in { width:100%; padding:13px 16px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:12px; color:#fff; font-size:.9rem; font-family:'Plus Jakarta Sans',sans-serif; outline:none; box-sizing:border-box; transition:border .2s,background .2s; }
 .auth-in:focus { border-color:rgba(231,76,60,.6); background:rgba(231,76,60,.06); }
 .auth-in::placeholder { color:rgba(255,255,255,.28); }
@@ -14,6 +15,7 @@ const S = `
 .auth-btn:hover:not(:disabled){opacity:.88;}
 .auth-btn:active:not(:disabled){transform:scale(.98);}
 .auth-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;}
+.err-banner { color:#ff6b6b; background:rgba(231,76,60,.08); border:1px solid rgba(231,76,60,.22); border-radius:10px; padding:10px 14px; font-size:.82rem; margin-bottom:14px; animation: shake .35s ease; }
 `;
 
 export default function Login() {
@@ -21,6 +23,7 @@ export default function Login() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [ready, setReady] = useState(false);
+    const [error, setError] = useState("");
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -28,23 +31,26 @@ export default function Login() {
         if (localStorage.getItem("token")) navigate("/dashboard");
     }, [navigate]);
 
+    // Strip ALL whitespace from email — handles paste-with-spaces, autofill quirks,
+    // and stray taps on the spacebar that produce the "part after @ should not contain space" error.
+    const onEmailChange = (e) => setEmail(e.target.value.replace(/\s+/g, ""));
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!email.trim() || !password.trim()) { alert("Fill in all fields"); return; }
+        const cleanEmail = email.trim().toLowerCase();
+        if (!cleanEmail || !password.trim()) {
+            setError("Please fill in both fields");
+            return;
+        }
+        setError("");
         setLoading(true);
         try {
-            const res = await API.post("/api/auth/login", { email, password });
+            const res = await API.post("/api/auth/login", { email: cleanEmail, password });
             localStorage.setItem("token", res.data.accessToken);
             localStorage.setItem("refreshToken", res.data.refreshToken);
             navigate("/dashboard");
         } catch (err) {
-            const data = err.response?.data;
-            // ✅ If email not verified, redirect to OTP page
-            if (data?.needsVerification) {
-                navigate("/verify-otp", { state: { email: data.email } });
-                return;
-            }
-            alert(data?.message || "Login failed");
+            setError(err.response?.data?.message || "Login failed. Please check your credentials.");
         } finally {
             setLoading(false);
         }
@@ -66,14 +72,17 @@ export default function Login() {
                             <p style={{ color: "rgba(255,255,255,.38)", fontSize: "0.88rem", margin: 0 }}>Sign in to BloodConnect</p>
                         </div>
 
-                        <form onSubmit={handleSubmit}>
+                        {error && <div className="err-banner">⚠️ {error}</div>}
+
+                        {/* noValidate: skip browser HTML5 validation since we strip whitespace and validate ourselves */}
+                        <form onSubmit={handleSubmit} noValidate>
                             <div style={{ marginBottom: 14 }}>
                                 <label style={{ display: "block", color: "rgba(255,255,255,.5)", fontSize: "0.75rem", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.8px" }}>Email</label>
-                                <input type="email" className="auth-in" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                                <input type="email" autoComplete="email" className="auth-in" placeholder="you@example.com" value={email} onChange={onEmailChange} />
                             </div>
                             <div style={{ marginBottom: 26 }}>
                                 <label style={{ display: "block", color: "rgba(255,255,255,.5)", fontSize: "0.75rem", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.8px" }}>Password</label>
-                                <input type="password" className="auth-in" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+                                <input type="password" autoComplete="current-password" className="auth-in" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
                             </div>
                             <button type="submit" className="auth-btn" disabled={loading}>
                                 {loading

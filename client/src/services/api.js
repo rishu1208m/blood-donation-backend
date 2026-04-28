@@ -1,8 +1,17 @@
 import axios from "axios";
 
-const API = axios.create({
-    baseURL: "https://blood-donation-backend-bzb8.onrender.com",
-});
+// 🌐 Auto-pick the API base URL.
+// - In dev (npm start) → localhost:5000 (your local Express server)
+// - In production build → Render deployed backend
+//
+// You can override either by setting REACT_APP_API_URL in client/.env
+const BASE_URL =
+    process.env.REACT_APP_API_URL ||
+    (process.env.NODE_ENV === "development"
+        ? "http://localhost:5000"
+        : "https://blood-donation-backend-bzb8.onrender.com");
+
+const API = axios.create({ baseURL: BASE_URL });
 
 API.interceptors.request.use((req) => {
     const token = localStorage.getItem("token");
@@ -19,10 +28,7 @@ API.interceptors.response.use(
             try {
                 const refreshToken = localStorage.getItem("refreshToken");
                 if (!refreshToken) throw new Error("No refresh token");
-                const res = await axios.post(
-                    "https://blood-donation-backend-bzb8.onrender.com/api/auth/refresh",
-                    { token: refreshToken }
-                );
+                const res = await axios.post(`${BASE_URL}/api/auth/refresh`, { token: refreshToken });
                 localStorage.setItem("token", res.data.accessToken);
                 localStorage.setItem("refreshToken", res.data.refreshToken);
                 original.headers.Authorization = `Bearer ${res.data.accessToken}`;
