@@ -7,7 +7,6 @@ const S = `
 @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
 @keyframes pop { 0%{transform:scale(.6);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
 @keyframes blob { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(20px,-15px) scale(1.05)} }
-@keyframes meterFill { from{stroke-dashoffset: 283} to{stroke-dashoffset: var(--end, 0)} }
 @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
 @keyframes flash { 0%,100%{opacity:.6} 50%{opacity:1} }
 @keyframes spin { to{transform:rotate(360deg)} }
@@ -20,15 +19,12 @@ const S = `
 .cta:hover:not(:disabled) { transform:translateY(-2px); }
 .cta:active:not(:disabled) { transform:translateY(0) scale(.98); }
 .cta:disabled { opacity:.45; cursor:not-allowed; }
-
 .scenario-card { transition: all .25s ease; cursor:pointer; }
 .scenario-card:hover { transform: translateY(-4px); }
 .scenario-card.active { transform: translateY(-2px); }
-
 .urg-flash { animation: flash 1.4s ease-in-out infinite; }
 `;
 
-// Scenario gallery — visual buttons that fill in the textarea
 const SCENARIOS = [
     { tone: "high",   icon: "🚨", color: "#e74c3c", bg: "linear-gradient(135deg,#e74c3c,#c0392b)",
       title: "Accident / ICU",
@@ -63,7 +59,7 @@ export default function UrgencyClassifier() {
     const [result, setResult] = useState(null);
     const [error, setError] = useState("");
 
-    const useScenario = (s, idx) => {
+    const pickScenario = (s, idx) => {
         setText(s.text);
         setActiveScenario(idx);
         setResult(null);
@@ -90,7 +86,6 @@ export default function UrgencyClassifier() {
                 <div style={{ position: "absolute", width: 460, height: 460, borderRadius: "50%", bottom: -90, right: -90, background: "radial-gradient(circle,rgba(231,76,60,.12) 0%,transparent 70%)", animation: "blob 14s ease-in-out infinite reverse", pointerEvents: "none" }} />
 
                 <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 20px 0", position: "relative", zIndex: 1, animation: "fadeUp .5s ease" }}>
-                    {/* Header */}
                     <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
                         <div style={{ width: 52, height: 52, borderRadius: 16, background: "linear-gradient(135deg,#f39c12,#d68910)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, boxShadow: "0 10px 28px rgba(243,156,18,.45)" }}>⚡</div>
                         <div style={{ flex: 1 }}>
@@ -99,12 +94,11 @@ export default function UrgencyClassifier() {
                         </div>
                     </div>
 
-                    {/* Scenario gallery */}
                     <div style={{ marginBottom: 18 }}>
                         <div style={{ color: "rgba(255,255,255,.55)", fontSize: ".72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 10 }}>📚 Try a Scenario</div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
                             {SCENARIOS.map((s, i) => (
-                                <button key={i} className={`scenario-card ${activeScenario === i ? "active" : ""}`} onClick={() => useScenario(s, i)}
+                                <button key={i} className={`scenario-card ${activeScenario === i ? "active" : ""}`} onClick={() => pickScenario(s, i)}
                                     style={{
                                         background: activeScenario === i ? s.bg : "rgba(20,20,28,.6)",
                                         backdropFilter: "blur(12px)",
@@ -125,7 +119,6 @@ export default function UrgencyClassifier() {
                         </div>
                     </div>
 
-                    {/* Input area */}
                     <div className="uc-card" style={{ padding: 24, marginBottom: 16 }}>
                         <label style={{ display: "block", color: "rgba(255,255,255,.7)", fontSize: ".82rem", fontWeight: 600, marginBottom: 10 }}>📝 Describe the situation</label>
                         <textarea className="area" value={text} onChange={e => { setText(e.target.value); setActiveScenario(null); }} placeholder="e.g. My uncle is in the ICU after a car accident, needs O- blood, 2 units, very urgent…" />
@@ -150,7 +143,6 @@ export default function UrgencyClassifier() {
 function UrgencyMeter({ level }) {
     const theme = URGENCY_THEME[level] || URGENCY_THEME.medium;
     const meterValue = theme.meter;
-    // Circle: r=45, circumference ≈ 282.7
     const circumference = 282.7;
     const offset = circumference - (meterValue / 100) * circumference;
 
