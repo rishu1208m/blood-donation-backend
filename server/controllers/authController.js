@@ -5,6 +5,14 @@ const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const transporter = require("../config/mailer");
 
+// Big eye-catching console log so the dev can grab the OTP even if email fails.
+function logOTP(email, otp) {
+    const line = "═".repeat(56);
+    console.log("\n" + line);
+    console.log(`🔐  OTP for ${email}:  ${otp}`);
+    console.log(line + "\n");
+}
+
 // ================= SIGNUP WITH OTP =================
 exports.signup = async (req, res) => {
     try {
@@ -15,9 +23,9 @@ exports.signup = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Generate OTP before creating user
+        // Generate OTP
         const otp = Math.floor(100000 + Math.random() * 900000);
-        const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+        const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 min
 
         const user = await User.create({
             name, email,
@@ -28,11 +36,17 @@ exports.signup = async (req, res) => {
             isVerified: false,
         });
 
-        // Send OTP email
+        // Always log to console so you can grab it during dev.
+        logOTP(email, otp);
+
+        // Try to send email — failures are logged but don't block registration.
+        let emailSent = false;
+        let emailError = null;
         try {
             await transporter.sendMail({
                 to: email,
                 subject: "🩸 BloodConnect — Verify Your Email",
+                text: `Your BloodConnect verification OTP is: ${otp}\n\nThis OTP expires in 10 minutes.`,
                 html: `
                     <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#fff;border-radius:12px;border:1px solid #eee;">
                         <h2 style="color:#e74c3c;margin-bottom:8px;">Welcome to BloodConnect 🩸</h2>
@@ -43,17 +57,21 @@ exports.signup = async (req, res) => {
                         </div>
                         <p style="color:#999;font-size:0.85rem;">This OTP expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
                     </div>
-                `
+                `,
             });
+            emailSent = true;
         } catch (mailErr) {
+            emailError = mailErr.message;
             console.error("❌ Email send failed:", mailErr.message);
-            // Don't block registration if email fails
         }
 
         res.status(201).json({
-            message: "Registration successful. Please verify your email with the OTP sent.",
+            message: emailSent
+                ? "Registration successful. Please verify your email with the OTP sent."
+                : "Registration successful. Email could not be delivered — check your server console for the OTP, or try Resend OTP.",
             userId: user._id,
-            emailSent: true,
+            emailSent,
+            emailError,
         });
     } catch (err) {
         console.log("🔥 SIGNUP ERROR:", err);
@@ -61,7 +79,7 @@ exports.signup = async (req, res) => {
     }
 };
 
-// ================= VERIFY OTP (for email verification) =================
+// ================= VERIFY OTP =================
 exports.verifyOTP = async (req, res) => {
     try {
         const { email, otp } = req.body;
@@ -70,7 +88,12 @@ exports.verifyOTP = async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        if (String(user.otp) !== String(otp) || Date.now() > user.otpExpiry) {
+        if (!user.otp || !user.otpExpiry) {
+            return res.status(400).json({ message: "No OTP on record. Please request a new one." });
+        }
+
+        const expiryMs = user.otpExpiry instanceof Date ? user.otpExpiry.getTime() : Number(user.otpExpiry);
+        if (String(user.otp).trim() !== String(otp).trim() || Date.now() > expiryMs) {
             return res.status(400).json({ message: "Invalid or expired OTP" });
         }
 
@@ -79,7 +102,6 @@ exports.verifyOTP = async (req, res) => {
         user.otpExpiry = null;
         await user.save();
 
-        // Issue JWT after verification
         const accessToken = jwt.sign(
             { id: user._id, role: user.role },
             process.env.JWT_SECRET,
@@ -90,7 +112,7 @@ exports.verifyOTP = async (req, res) => {
             userId: user._id,
             token: refreshToken,
             type: "refresh",
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         });
 
         res.json({ message: "Email verified!", accessToken, refreshToken });
@@ -103,6 +125,7 @@ exports.verifyOTP = async (req, res) => {
 exports.resendOTP = async (req, res) => {
     try {
         const { email } = req.body;
+        if (!email) return res.status(400).json({ message: "Email is required" });
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ message: "User not found" });
         if (user.isVerified) return res.status(400).json({ message: "Email already verified" });
@@ -112,26 +135,34 @@ exports.resendOTP = async (req, res) => {
         user.otpExpiry = Date.now() + 10 * 60 * 1000;
         await user.save();
 
-        await transporter.sendMail({
-            to: email,
-            subject: "🩸 BloodConnect — New OTP",
-            html: `<div style="font-family:sans-serif;padding:32px;"><h2 style="color:#e74c3c;">New OTP</h2><p>Your new OTP is:</p><div style="font-size:2.5rem;font-weight:800;color:#e74c3c;letter-spacing:8px;text-align:center;padding:16px;background:#fff5f5;border-radius:8px;">${otp}</div><p style="color:#999;">Expires in 10 minutes.</p></div>`
-        });
+        logOTP(email, otp);
 
-        res.json({ message: "New OTP sent" });
+        try {
+            await transporter.sendMail({
+                to: email,
+                subject: "🩸 BloodConnect — New OTP",
+                text: `Your new BloodConnect OTP is: ${otp}\nExpires in 10 minutes.`,
+                html: `<div style="font-family:sans-serif;padding:32px;"><h2 style="color:#e74c3c;">New OTP</h2><p>Your new OTP is:</p><div style="font-size:2.5rem;font-weight:800;color:#e74c3c;letter-spacing:8px;text-align:center;padding:16px;background:#fff5f5;border-radius:8px;">${otp}</div><p style="color:#999;">Expires in 10 minutes.</p></div>`,
+            });
+            res.json({ message: "New OTP sent" });
+        } catch (mailErr) {
+            console.error("❌ Resend OTP email failed:", mailErr.message);
+            res.json({ message: "OTP regenerated. Email could not be sent — check the server console." });
+        }
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 };
 
 // ================= LOGIN =================
+// Pure email + password. NO OTP step here — verification is registration's job.
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
         if (!email || !password) return res.status(400).json({ message: "Email and password are required" });
 
         const user = await User.findOne({ email });
-        if (!user) return res.status(400).json({ message: "User not found" });
+        if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
         if (user.lockUntil && user.lockUntil > Date.now())
             return res.status(403).json({ message: "Account locked. Try again later." });
@@ -142,11 +173,6 @@ exports.login = async (req, res) => {
             if (user.loginAttempts >= 5) user.lockUntil = Date.now() + 15 * 60 * 1000;
             await user.save();
             return res.status(400).json({ message: "Invalid credentials" });
-        }
-
-        // Warn if not verified (but still allow login)
-        if (!user.isVerified) {
-            return res.status(403).json({ message: "Please verify your email before logging in.", needsVerification: true, email });
         }
 
         user.loginAttempts = 0;
@@ -204,8 +230,14 @@ exports.sendOTP = async (req, res) => {
         user.otp = otp;
         user.otpExpiry = Date.now() + 5 * 60 * 1000;
         await user.save();
-        await transporter.sendMail({ to: email, subject: "Your OTP", text: `Your OTP is ${otp}. Expires in 5 minutes.` });
-        res.json({ message: "OTP sent" });
+        logOTP(email, otp);
+        try {
+            await transporter.sendMail({ to: email, subject: "Your OTP", text: `Your OTP is ${otp}. Expires in 5 minutes.` });
+            res.json({ message: "OTP sent" });
+        } catch (mailErr) {
+            console.error("❌ sendOTP email failed:", mailErr.message);
+            res.json({ message: "OTP generated. Email could not be sent — check the server console." });
+        }
     } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
